@@ -1,68 +1,84 @@
 package practicaestacionamiento;
 
-import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
+
 
 public class Estacionamiento{
     int espacios_disponibles;
     int carros_esperando_entrar;
     int carros_esperando_salir;
+    int MAX;
     public Estacionamiento(int lugares){
         this.espacios_disponibles = lugares;
         this.carros_esperando_entrar = 0;
         this.carros_esperando_salir = 0;
-    }
-    public void estacionar(int id) throws InterruptedException{
-        System.out.println("El carro " + id + " esta intentando entrar al estacionamiento");
-        System.out.println("Carros esperando entrar => " + carros_esperando_entrar);
-        synchronized(this)
-        {
-            while(carros_esperando_salir > 0){
-                System.out.println("Hay carros saliendo, por lo que se pone en espera");
-                carros_esperando_entrar++;
-                System.out.println("Carros esperando entrar => " + carros_esperando_entrar + " ; Carros esperando salir => " + carros_esperando_salir);
-                wait();
-            }
-        }
-        
-        //ocupar un lugar
-        synchronized(this){
-            if(espacios_disponibles > 0){
-                espacios_disponibles--;
-                System.out.println("Espacios disponibles [ " + espacios_disponibles + " ]");
-                if(carros_esperando_entrar > 0)
-                {
-                    carros_esperando_entrar--;
-                    System.out.println("Carros esperando entrar => " + carros_esperando_entrar + " ; Carros esperando salir => " + carros_esperando_salir);
-                }
-            }else{
-                carros_esperando_entrar++;
-            }
-            
-            notifyAll();
-        }
-        
+        this.MAX = lugares;
+        System.out.println("Espacios disponibles [ " + espacios_disponibles + " ]");
     }
     
-    public void dejarLugar(int id) throws InterruptedException{
-        synchronized(this){
-            while(carros_esperando_entrar > 0){
-                carros_esperando_salir++;
-                wait();
-            }
+    public synchronized void entrar(int id, Carro c) throws InterruptedException{
+        System.out.println("El carro con placa [ " + Thread.currentThread().getName() + " ] esta intentando entrar");
+        while(carros_esperando_salir > 0){
+            System.out.println("=== Hay " + carros_esperando_salir + " carros esperando salir ===");
+            this.wait();
         }
-        //salir
-        synchronized(this){
-            System.out.println("El carro " + id + " esta saliendo del estacionamiento");
-            espacios_disponibles++;
-            if(espacios_disponibles > 0)
-            {
-                if(carros_esperando_salir > 0 )
+        if(espacios_disponibles > 0)
+        {
+            c.estacionado = true;
+            estacionar(id);
+            while(c.estacionado){
+                if(tiempo_aleatorio_para_salir(1, 10) < 5)
                 {
-                    carros_esperando_salir--;
+                    c.estacionado = false;
+                    dejarLugar(id, c);
+                }
+                else
+                {
+                    if(espacios_disponibles == 0)
+                        notify();
+                    else
+                        this.wait();
                 }
             }
-            notifyAll();
         }
+        else
+        {
+            System.out.println("El carro con placa [ " + Thread.currentThread().getName() + " ] no pudo entrar porque no hay lugar");
+            carros_esperando_entrar++;
+            System.out.println("Hay " + carros_esperando_entrar + " carros esperando entrar");
+            this.wait();
+        }
+        if(espacios_disponibles==0)
+        {
+            this.wait();
+        }
+    }
+    private void estacionar(int id) throws InterruptedException{
+        
+        System.out.println("El carro con placa [ " + Thread.currentThread().getName() + " ] se esta estacionando");
+        espacios_disponibles--;
+        System.out.println("Espacios disponibles [ " + espacios_disponibles + " ]");
+    }
+    
+    public synchronized void dejarLugar(int id, Carro c) throws InterruptedException{
+        while(carros_esperando_entrar > 0){
+            System.out.println("=== Hay " + carros_esperando_entrar + " carros esperando entrar ===");
+            this.wait();
+        }
+        if(espacios_disponibles < MAX)
+        {
+            Thread.currentThread().sleep(tiempo_aleatorio_para_salir(100, 2000));
+            espacios_disponibles++;
+            System.out.println("El carro con placa [ " + Thread.currentThread().getName() + " ] esta saliendo, hay [ " + espacios_disponibles + " ] espacios disponibles");
+        }
+        
+        if(carros_esperando_entrar==0)
+            this.notify();
+        else
+            carros_esperando_salir++;
+    }
+    
+    private int tiempo_aleatorio_para_salir(int min, int max){
+        return ThreadLocalRandom.current().nextInt(min, max + 1);
     }
 }

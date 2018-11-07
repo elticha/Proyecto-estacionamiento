@@ -2,20 +2,21 @@ package practicaestacionamiento;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class Carro extends Thread{
-    int id;
+public class Carro implements Runnable{
+    long id;
     Estacionamiento estacionamiento;
-    public Carro(int id, Estacionamiento e){
+    boolean estacionado;
+    public Carro(int i,Estacionamiento e){
         this.estacionamiento = e;
-        this.id = id;
+        this.id = i;
+        this.estacionado = false;
     }
-    
+
     @Override
-    public void start(){
+    public void run() {
         try {
-            this.estacionamiento.estacionar(id);
-//            Thread.sleep(1000);
-//            this.estacionamiento.dejarLugar(id);
+            this.estacionamiento.entrar((int)id, this);
+//            this.estacionamiento.dejarLugar((int) id, this);
         } catch (InterruptedException ex) {
             Logger.getLogger(Carro.class.getName()).log(Level.SEVERE, null, ex);
         }
